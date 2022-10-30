@@ -1,6 +1,9 @@
 # Yul ERC20
 
-Here's the minimal complete ERC20 spec in Yul
+The ERC20 implementation using only inline assembly yul. 
+NOT MEANT FOR PRODUCTION
+
+Need to add code comments :P so good luck
 
 ## Usage
 
