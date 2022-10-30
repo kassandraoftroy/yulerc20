@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import hre = require("hardhat");
-//import { YulERC20 } from "../typechain";
+import { IERC20, YulERC20 } from "../typechain";
 import { Signer } from "ethers";
 import { MockERC20 } from "../typechain/contracts/__mocks__/MockERC20";
 
@@ -12,7 +12,8 @@ describe("YulERC20 test", async function () {
   let user: Signer;
   let user2: Signer;
   let mockToken: MockERC20;
-  //let token: YulERC20;
+  let token: YulERC20;
+  let tokenI: IERC20;
 
   beforeEach("setup", async function () {
     if (hre.network.name !== "hardhat") {
@@ -24,18 +25,22 @@ describe("YulERC20 test", async function () {
 
     await deployments.fixture();
     mockToken = (await ethers.getContract("MockERC20", user)) as MockERC20;
-    //token = (await ethers.getContract("YulERC20", user)) as YulERC20;
+    token = (await ethers.getContract("YulERC20", user)) as YulERC20;
+    tokenI = (await ethers.getContractAt("IERC20", token.address, user)) as IERC20;
   });
   it("tests erc20", async function () {
     const oneEth = ethers.utils.parseEther("1")
-    const tokens = [mockToken, /*token*/];
-    for (let i=0; i<tokens.length; i++) {
-        const name = await tokens[i].name();
-        expect(name).to.be.equal('abc');
-        const symbol = await tokens[i].symbol();
-        expect(symbol).to.be.equal('ABC');
-        const decimals = await tokens[i].decimals();
+    let tokens:any = [mockToken, token];
+    for (let j=0; j<tokens.length; j++) {
+        const decimals = await tokens[j].decimals();
         expect(decimals).to.be.equal(18);
+        const name = await tokens[j].name();
+        expect(name).to.be.equal('abc');
+        const symbol = await tokens[j].symbol();
+        expect(symbol).to.be.equal('ABC');
+    }
+    tokens = [mockToken, tokenI];
+    for (let i=0; i<tokens.length; i++) {
         const bal = await tokens[i].balanceOf(await user.getAddress());
         const supply = await tokens[i].totalSupply();
         expect(bal).to.be.equal(supply);
@@ -80,6 +85,8 @@ describe("YulERC20 test", async function () {
         const event3 = rc3?.events?.find((event: any) => event.event === "Transfer");
         // eslint-disable-next-line no-unsafe-optional-chaining
         expect(event3?.address).to.be.equal(tokens[i].address);
+
+        await expect(tokens[i].connect(user).transfer(ethers.constants.AddressZero, oneEth)).to.be.reverted;
     }
   });
 });
