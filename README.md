@@ -1,6 +1,6 @@
 # Yul ERC20
 
-The ERC20 implementation using only inline assembly yul. Basically a hyper gas optimized ERC20.
+ERC20 implementation using only inline assembly yul. Basically, it is a hyper gas optimized ERC20.
 
 **NOT MEANT FOR PRODUCTION - UNAUDITED - USE AT OWN RISK**
 
@@ -18,18 +18,30 @@ yarn test
 
 ## Gas Comparison
 
-Solc version: 0.8.13
-Optimizer enabled: true
-Runs: 999999
+- Solc version: 0.8.13
+- Optimizer enabled: true
+- Runs: 999999
 
-OpenZeppelinERC20 `approve`      46231
-SolmateERC20      `approve`      46153
-YulERC20          `approve`      45985
+### approve
 
-OpenZeppelinERC20 `transfer`     51474
-SolmateERC20      `transfer`     51229
-YulERC20          `transfer`     51073
+| Contract            | Gas Cost  |
+| ------------------- | --------- |
+| OpenZeppelinERC20   | 46231     |
+| SolmateERC20        | 46153     |
+| **YulERC20**        | **45985** |
 
-OpenZeppelinERC20 `transferFrom` 33714
-SolmateERC20      `transferFrom` 31995
-YulERC20          `transferFrom` 31724
+### transfer
+
+| Contract            | Gas Cost  |
+| ------------------- | --------- |
+| OpenZeppelinERC20   | 51474     |
+| SolmateERC20        | 51229     |
+| **YulERC20**        | **51073** |
+
+### transferFrom
+
+| Contract            | Gas Cost  |
+| ------------------- | --------- |
+| OpenZeppelinERC20   | 33714     |
+| SolmateERC20        | 31995     |
+| **YulERC20**        | **31724** |
