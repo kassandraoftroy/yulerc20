@@ -114,7 +114,6 @@ contract YulERC20 {
             let allowance := sload(allowanceSlot)
 
             // if allowance == type(uint256).max, no need to check or decrement allowance
-            // else we need to check and decrement allowance
             if lt(allowance, _MAX) {
                 // require allowance >= amount 
                 if lt(allowance, amount) {
@@ -123,12 +122,9 @@ contract YulERC20 {
                 }
 
                 // decrement and store new allowance
-                let newAllowance := sub(allowance, amount)
-                sstore(allowanceSlot, newAllowance)
-
+                sstore(allowanceSlot, sub(allowance, amount))
+                
                 // log Approval event ?? CURRENTLY IGNORED
-                // mstore(0x00, newAllowance)
-                // log3(0x00, 0x20, _APPROVAL_HASH, src, caller())
             }
 
             // get balance of src
