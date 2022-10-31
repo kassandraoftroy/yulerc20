@@ -18,9 +18,9 @@ yarn test
 
 ## Gas Comparison
 
-- Solc version: 0.8.13
-- Optimizer enabled: true
-- Runs: 999999
+- Solc version: `0.8.13`
+- Optimizer enabled: `true`
+- Runs: `999999`
 
 ### approve
 
@@ -28,7 +28,7 @@ yarn test
 | ------------------- | --------- |
 | OpenZeppelinERC20   | 46231     |
 | SolmateERC20        | 46153     |
-| **YulERC20**        | **45985** |
+| YulERC20            | **45985** |
 
 ### transfer
 
@@ -36,7 +36,7 @@ yarn test
 | ------------------- | --------- |
 | OpenZeppelinERC20   | 51474     |
 | SolmateERC20        | 51229     |
-| **YulERC20**        | **51073** |
+| YulERC20            | **51073** |
 
 ### transferFrom
 
@@ -44,4 +44,4 @@ yarn test
 | ------------------- | --------- |
 | OpenZeppelinERC20   | 33714     |
 | SolmateERC20        | 31995     |
-| **YulERC20**        | **31724** |
+| YulERC20            | **31724** |
