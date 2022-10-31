@@ -1,8 +1,12 @@
 import { expect } from "chai";
 import hre = require("hardhat");
-import { IERC20, YulERC20 } from "../typechain";
+import {
+  IERC20,
+  OpenZeppelinERC20,
+  SolmateERC20,
+  YulERC20 
+} from "../typechain";
 import { Signer } from "ethers";
-import { MockERC20 } from "../typechain/contracts/__mocks__/MockERC20";
 
 const { ethers, deployments } = hre;
 
@@ -11,9 +15,10 @@ describe("YulERC20 test", async function () {
 
   let user: Signer;
   let user2: Signer;
-  let mockToken: MockERC20;
+  let ozToken: OpenZeppelinERC20;
+  let smToken: SolmateERC20;
   let token: YulERC20;
-  let tokenI: IERC20;
+  let tokenIERC20: IERC20;
 
   beforeEach("setup", async function () {
     if (hre.network.name !== "hardhat") {
@@ -24,13 +29,14 @@ describe("YulERC20 test", async function () {
     [user, user2] = await ethers.getSigners();
 
     await deployments.fixture();
-    mockToken = (await ethers.getContract("MockERC20", user)) as MockERC20;
+    ozToken = (await ethers.getContract("OpenZeppelinERC20", user)) as OpenZeppelinERC20;
+    smToken = (await ethers.getContract("SolmateERC20", user)) as SolmateERC20;
     token = (await ethers.getContract("YulERC20", user)) as YulERC20;
-    tokenI = (await ethers.getContractAt("IERC20", token.address, user)) as IERC20;
+    tokenIERC20 = (await ethers.getContractAt("IERC20", token.address, user)) as IERC20;
   });
   it("tests erc20", async function () {
     const oneEth = ethers.utils.parseEther("1")
-    let tokens:any = [mockToken, token];
+    let tokens:any = [ozToken, smToken, token];
     for (let j=0; j<tokens.length; j++) {
         const decimals = await tokens[j].decimals();
         expect(decimals).to.be.equal(18);
@@ -39,7 +45,7 @@ describe("YulERC20 test", async function () {
         const symbol = await tokens[j].symbol();
         expect(symbol).to.be.equal('ABC');
     }
-    tokens = [mockToken, tokenI];
+    tokens = [ozToken, smToken, tokenIERC20];
     for (let i=0; i<tokens.length; i++) {
         const bal = await tokens[i].balanceOf(await user.getAddress());
         const supply = await tokens[i].totalSupply();
@@ -86,7 +92,10 @@ describe("YulERC20 test", async function () {
         // eslint-disable-next-line no-unsafe-optional-chaining
         expect(event3?.address).to.be.equal(tokens[i].address);
 
-        await expect(tokens[i].connect(user).transfer(ethers.constants.AddressZero, oneEth)).to.be.reverted;
+        // solmate does not protect against transfers to address(0)
+        if (tokens[i].address != smToken.address) {
+          await expect(tokens[i].connect(user).transfer(ethers.constants.AddressZero, oneEth)).to.be.reverted;
+        }
     }
   });
 });
