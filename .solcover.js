@@ -1,6 +1,3 @@
 module.exports = {
-  skipFiles: [
-    "__mocks__",
-    "node_modules",
-  ],
+  skipFiles: ["__mocks__", "node_modules"],
 };
