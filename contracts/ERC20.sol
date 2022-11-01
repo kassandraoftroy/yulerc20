@@ -60,15 +60,17 @@ abstract contract ERC20 {
     // token total supply, storage slot 0x02
     uint256 internal _supply;
 
-    // token name string
-    string public name;
+    // token name string, storage slot 0x03 - enforce short string in constructor
+    string internal _name;
 
-    // token symbol string
-    string public symbol;
+    // token symbol string, storage slot 0x04 - enforce short string in constructor
+    string internal _symbol;
 
     constructor(string memory name_, string memory symbol_) {
-        name = name_;
-        symbol = symbol_;
+        // require strings are short
+        require(bytes(name_).length < 32 && bytes(symbol_).length < 32);
+        _name = name_;
+        _symbol = symbol_;
     }
 
     function transfer(address dst, uint256 amount)
@@ -227,6 +229,30 @@ abstract contract ERC20 {
             // return _supply;
             mstore(0x00, sload(0x02))
             return(0x00, 0x20)
+        }
+    }
+
+    function name() public view virtual returns (string memory) {
+        assembly {
+            // return _name;
+            let nameData := sload(0x03)
+            let nameLenByte := and(nameData, 0xff)
+            mstore(0x00, 0x20)
+            mstore(0x20, div(nameLenByte, 0x02))
+            mstore(0x40, sub(nameData, nameLenByte))
+            return(0x00, 0x60)
+        }
+    }
+
+    function symbol() public view virtual returns (string memory) {
+        assembly {
+            // return _symbol;
+            let symbolData := sload(0x04)
+            let symbolLenByte := and(symbolData, 0xff)
+            mstore(0x00, 0x20)
+            mstore(0x20, div(symbolLenByte, 0x02))
+            mstore(0x40, sub(symbolData, symbolLenByte))
+            return(0x00, 0x60)
         }
     }
 
