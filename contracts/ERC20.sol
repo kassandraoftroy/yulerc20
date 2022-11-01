@@ -13,11 +13,7 @@ abstract contract ERC20 {
 
     event Transfer(address indexed src, address indexed dst, uint256 amount);
 
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 amount
-    );
+    event Approval(address indexed src, address indexed dst, uint256 amount);
 
     // keccak256("Transfer(address,address,uint256)")
     bytes32 internal constant _TRANSFER_HASH =
@@ -62,13 +58,16 @@ abstract contract ERC20 {
     // token symbol string, storage slot 0x04
     string public symbol;
 
-    constructor(string memory _name, string memory _symbol) {
-        // store name and symbol strings on construction (only solidity logic)
-        name = _name;
-        symbol = _symbol;
+    constructor(string memory name_, string memory symbol_) {
+        name = name_;
+        symbol = symbol_;
     }
 
-    function transfer(address dst, uint256 amount) external returns (bool) {
+    function transfer(address dst, uint256 amount)
+        external
+        virtual
+        returns (bool)
+    {
         assembly {
             // require dst != address(0)
             if iszero(dst) {
@@ -88,10 +87,10 @@ abstract contract ERC20 {
                 revert(0x00, 0x04)
             }
 
-            // decrement and store new balanace of msg.sender
+            // decrement by amount and store new msg.sender balance
             sstore(srcSlot, sub(srcBalance, amount))
 
-            // get balance of dst, increment and store new balance
+            // get balance of dst, increment and store new dst balance
             mstore(0x00, dst)
             let dstSlot := keccak256(0x00, 0x40)
             sstore(dstSlot, add(sload(dstSlot), amount))
@@ -111,7 +110,7 @@ abstract contract ERC20 {
         address src,
         address dst,
         uint256 amount
-    ) external returns (bool) {
+    ) external virtual returns (bool) {
         assembly {
             // require dst != address(0)
             if iszero(dst) {
@@ -171,18 +170,22 @@ abstract contract ERC20 {
         }
     }
 
-    function approve(address spender, uint256 amount) external returns (bool) {
+    function approve(address dst, uint256 amount)
+        external
+        virtual
+        returns (bool)
+    {
         assembly {
-            // store amount as spender allowance
+            // store amount as dst allowance
             mstore(0x00, caller())
             mstore(0x20, 0x01)
             mstore(0x20, keccak256(0x00, 0x40))
-            mstore(0x00, spender)
+            mstore(0x00, dst)
             sstore(keccak256(0x00, 0x40), amount)
 
             // log Approval event
             mstore(0x00, amount)
-            log3(0x00, 0x20, _APPROVAL_HASH, caller(), spender)
+            log3(0x00, 0x20, _APPROVAL_HASH, caller(), dst)
 
             // return true
             mstore(0x00, 0x01)
@@ -190,7 +193,7 @@ abstract contract ERC20 {
         }
     }
 
-    function decimals() external pure returns (uint8) {
+    function decimals() public pure virtual returns (uint8) {
         assembly {
             // return the constant 18 (aka 0x12)
             mstore(0x00, 0x12)
@@ -200,7 +203,7 @@ abstract contract ERC20 {
 
     function _mint(address dst, uint256 amount) internal virtual {
         assembly {
-            // get vaule in _supply slot, increment by amount
+            // get vaule in totalSupply slot, increment by amount
             let newSupply := add(amount, sload(0x02))
 
             // require newSupply did not overflow
@@ -209,7 +212,7 @@ abstract contract ERC20 {
                 revert(0x00, 0x04)
             }
 
-            // store newSupply in _supply slot
+            // store newSupply in totalSupply slot
             sstore(0x02, newSupply)
 
             // get balance of dst, incrememnt and store new balance
@@ -226,7 +229,7 @@ abstract contract ERC20 {
 
     function _burn(address src, uint256 amount) internal virtual {
         assembly {
-            // load src balance
+            // get src balance
             mstore(0x00, src)
             mstore(0x20, 0x00)
             let srcSlot := keccak256(0x00, 0x40)
@@ -238,10 +241,10 @@ abstract contract ERC20 {
                 revert(0x00, 0x04)
             }
 
-            // decrement and store new src balance
+            // decrement by amount and store new src balance
             sstore(srcSlot, sub(srcBalance, amount))
 
-            // load decrement and store updated _supply
+            // get value in totalSupply slot, decrement and store new totalSupply
             sstore(0x02, sub(sload(0x02), amount))
 
             // log Transfer event
