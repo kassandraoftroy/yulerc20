@@ -23,19 +23,19 @@ abstract contract ERC20 {
     bytes32 internal constant _APPROVAL_HASH =
         0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925;
 
-    // first 4 bytes of keccak256("InsufficientBalance()")
+    // first 4 bytes of keccak256("InsufficientBalance()") right padded with 0s
     bytes32 internal constant _INSUFFICIENT_BALANCE_SELECTOR =
         0xf4d678b800000000000000000000000000000000000000000000000000000000;
 
-    // first 4 bytes of keccak256("InsufficientAllowance()")
+    // first 4 bytes of keccak256("InsufficientAllowance()") right padded with 0s
     bytes32 internal constant _INSUFFICIENT_ALLOWANCE_SELECTOR =
         0x13be252b00000000000000000000000000000000000000000000000000000000;
 
-    // first 4 bytes of keccak256("AddressZero()")
+    // first 4 bytes of keccak256("AddressZero()") right padded with 0s
     bytes32 internal constant _ADDRESS_ZERO_SELECTOR =
         0x9fabe1c100000000000000000000000000000000000000000000000000000000;
 
-    // first 4 bytes of keccak256("Overflow()")
+    // first 4 bytes of keccak256("Overflow()") right padded with 0s
     bytes32 internal constant _OVERFLOW_SELECTOR =
         0x35278d1200000000000000000000000000000000000000000000000000000000;
 
@@ -50,12 +50,12 @@ abstract contract ERC20 {
     mapping(address => mapping(address => uint256)) internal _allowances;
 
     // token total supply, storage slot 0x02
-    uint256 internal _totalSupply;
+    uint256 internal _supply;
 
-    // token name string, storage slot 0x03
+    // token name string
     string public name;
 
-    // token symbol string, storage slot 0x04
+    // token symbol string
     string public symbol;
 
     constructor(string memory name_, string memory symbol_) {
@@ -69,37 +69,35 @@ abstract contract ERC20 {
         returns (bool)
     {
         assembly {
-            // require dst != address(0)
+            // require(dst != address(0), "Address Zero");
             if iszero(dst) {
                 mstore(0x00, _ADDRESS_ZERO_SELECTOR)
                 revert(0x00, 0x04)
             }
 
-            // get balance of msg.sender
+            // _balances[src] -= amount;
             mstore(0x00, caller())
             mstore(0x20, 0x00)
             let srcSlot := keccak256(0x00, 0x40)
             let srcBalance := sload(srcSlot)
 
-            // require balance >= amount
             if lt(srcBalance, amount) {
                 mstore(0x00, _INSUFFICIENT_BALANCE_SELECTOR)
                 revert(0x00, 0x04)
             }
 
-            // decrement by amount and store new msg.sender balance
             sstore(srcSlot, sub(srcBalance, amount))
 
-            // get balance of dst, increment and store new dst balance
+            // unchecked { _balances[dst] += amount; }
             mstore(0x00, dst)
             let dstSlot := keccak256(0x00, 0x40)
             sstore(dstSlot, add(sload(dstSlot), amount))
 
-            // log Transfer event
+            // emit Transfer(src, dst, amount);
             mstore(0x00, amount)
             log3(0x00, 0x20, _TRANSFER_HASH, caller(), dst)
 
-            // return true
+            // return true;
             mstore(0x00, 0x01)
             return(0x00, 0x20)
         }
@@ -112,13 +110,13 @@ abstract contract ERC20 {
         uint256 amount
     ) external virtual returns (bool) {
         assembly {
-            // require dst != address(0)
+            // require(dst != address(0), "Address Zero");
             if iszero(dst) {
                 mstore(0x00, _ADDRESS_ZERO_SELECTOR)
                 revert(0x00, 0x04)
             }
 
-            // get msg.sender allowance for src
+            // uint256 allowance = _allowances[msg.sender][dst];
             mstore(0x00, src)
             mstore(0x20, 0x01)
             mstore(0x20, keccak256(0x00, 0x40))
@@ -126,45 +124,41 @@ abstract contract ERC20 {
             let allowanceSlot := keccak256(0x00, 0x40)
             let allowanceVal := sload(allowanceSlot)
 
-            // if allowance == type(uint256).max, no need to check or decrement allowance
+            // if (allowanceVal != _MAX) _allowances[msg.sender][dst] = allowanceVal - amount;
             if lt(allowanceVal, _MAX) {
-                // require allowance >= amount
                 if lt(allowanceVal, amount) {
                     mstore(0x00, _INSUFFICIENT_ALLOWANCE_SELECTOR)
                     revert(0x00, 0x04)
                 }
 
-                // decrement and store new allowance
                 sstore(allowanceSlot, sub(allowanceVal, amount))
 
-                /// @notice: optionally log Approval event, CURRENTLY IGNORED
+                /// @dev NOTE not logging Approval event here, OZ impl does
             }
 
-            // get balance of src
+            // _balances[src] -= amount;
             mstore(0x00, src)
             mstore(0x20, 0x00)
             let srcSlot := keccak256(0x00, 0x40)
             let srcBalance := sload(srcSlot)
 
-            // require balance >= amount
             if lt(srcBalance, amount) {
                 mstore(0x00, _INSUFFICIENT_BALANCE_SELECTOR)
                 revert(0x00, 0x04)
             }
 
-            // decrement and store new balance
             sstore(srcSlot, sub(srcBalance, amount))
 
-            // get balance of dst, increment and store new balance
+            // unchecked { _balances[dst] += amount; }
             mstore(0x00, dst)
             let dstSlot := keccak256(0x00, 0x40)
             sstore(dstSlot, add(sload(dstSlot), amount))
 
-            // log Transfer event
+            // emit Transfer(src, dst, amount);
             mstore(0x00, amount)
             log3(0x00, 0x20, _TRANSFER_HASH, src, dst)
 
-            // return true
+            // return true;
             mstore(0x00, 0x01)
             return(0x00, 0x20)
         }
@@ -176,18 +170,18 @@ abstract contract ERC20 {
         returns (bool)
     {
         assembly {
-            // store amount as dst allowance
+            // _allowances[msg.sender][dst] = amount;
             mstore(0x00, caller())
             mstore(0x20, 0x01)
             mstore(0x20, keccak256(0x00, 0x40))
             mstore(0x00, dst)
             sstore(keccak256(0x00, 0x40), amount)
 
-            // log Approval event
+            // emit Approval(msg.sender, dst, amount);
             mstore(0x00, amount)
             log3(0x00, 0x20, _APPROVAL_HASH, caller(), dst)
 
-            // return true
+            // return true;
             mstore(0x00, 0x01)
             return(0x00, 0x20)
         }
@@ -200,13 +194,11 @@ abstract contract ERC20 {
         returns (uint256)
     {
         assembly {
-            // prepare nestled mapping storage slot computation
+            // return _allowance[src][dst];
             mstore(0x00, src)
             mstore(0x20, 0x01)
             mstore(0x20, keccak256(0x00, 0x40))
             mstore(0x00, dst)
-
-            // load and return value at storage slot
             mstore(0x00, sload(keccak256(0x00, 0x40)))
             return(0x00, 0x20)
         }
@@ -214,7 +206,7 @@ abstract contract ERC20 {
 
     function balanceOf(address src) public view virtual returns (uint256) {
         assembly {
-            // load and return value at owner balance storage slot
+            // return _balances[src];
             mstore(0x00, src)
             mstore(0x20, 0x00)
             mstore(0x00, sload(keccak256(0x00, 0x40)))
@@ -224,6 +216,7 @@ abstract contract ERC20 {
 
     function totalSupply() public view virtual returns (uint256) {
         assembly {
+            // return _supply;
             mstore(0x00, sload(0x02))
             return(0x00, 0x20)
         }
@@ -231,7 +224,7 @@ abstract contract ERC20 {
 
     function decimals() public pure virtual returns (uint8) {
         assembly {
-            // return the constant 18 (aka 0x12)
+            // return 18;
             mstore(0x00, 0x12)
             return(0x00, 0x20)
         }
@@ -239,25 +232,23 @@ abstract contract ERC20 {
 
     function _mint(address dst, uint256 amount) internal virtual {
         assembly {
-            // get vaule in totalSupply slot, increment by amount
+            // _supply += amount;
             let newSupply := add(amount, sload(0x02))
 
-            // require newSupply did not overflow
             if lt(newSupply, amount) {
                 mstore(0x00, _OVERFLOW_SELECTOR)
                 revert(0x00, 0x04)
             }
 
-            // store newSupply in totalSupply slot
             sstore(0x02, newSupply)
 
-            // get balance of dst, incrememnt and store new balance
+            // unchecked { _balances[dst] += amount; }
             mstore(0x00, dst)
             mstore(0x20, 0x00)
             let dstSlot := keccak256(0x00, 0x40)
             sstore(dstSlot, add(sload(dstSlot), amount))
 
-            // log Transfer event
+            // emit Transfer(address(0), dst, amount);
             mstore(0x00, amount)
             log3(0x00, 0x20, _TRANSFER_HASH, 0x00, dst)
         }
@@ -265,25 +256,23 @@ abstract contract ERC20 {
 
     function _burn(address src, uint256 amount) internal virtual {
         assembly {
-            // get src balance
+            // _balances[src] -= amount;
             mstore(0x00, src)
             mstore(0x20, 0x00)
             let srcSlot := keccak256(0x00, 0x40)
             let srcBalance := sload(srcSlot)
 
-            // require balance >= amount
             if lt(srcBalance, amount) {
                 mstore(0x00, _INSUFFICIENT_BALANCE_SELECTOR)
                 revert(0x00, 0x04)
             }
 
-            // decrement by amount and store new src balance
             sstore(srcSlot, sub(srcBalance, amount))
 
-            // get value in totalSupply slot, decrement and store new totalSupply
+            // unchecked { _supply -= amount; }
             sstore(0x02, sub(sload(0x02), amount))
 
-            // log Transfer event
+            // emit Transfer(src, address(0), amount);
             mstore(0x00, amount)
             log3(0x00, 0x20, _TRANSFER_HASH, src, 0x00)
         }
