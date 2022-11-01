@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.13;
+// solhint-disable-next-line compiler-version
+pragma solidity ^0.8.0;
 
 /// @notice ERC20 with max inline assembly. Comments in assembly blocks are solidity translations
 /// @author kassandra.eth
