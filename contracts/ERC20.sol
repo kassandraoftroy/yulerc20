@@ -132,6 +132,8 @@ abstract contract ERC20 {
                 }
 
                 sstore(allowanceSlot, sub(allowanceVal, amount))
+
+                /// @dev NOTE not logging Approval event here, OZ impl does
             }
 
             // _balances[src] -= amount;
