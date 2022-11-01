@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
+/// @notice ERC20 with max inline assembly. Comments in assembly blocks are solidity translations
+/// @author kassandra.eth
+/// @dev Do not manually set _balances without updating _supply. If modifying this source, do not
+/// prepend state variables without adjusting hardcoded storage slots across implementation.
+/// Custom errors for efficient but useful reverts.
+/// Solidity translation comments assume same 0.8+ solidity version.
+
 // solhint-disable-next-line max-states-count
 abstract contract ERC20 {
     error InsufficientBalance();
@@ -194,7 +201,7 @@ abstract contract ERC20 {
         returns (uint256)
     {
         assembly {
-            // return _allowance[src][dst];
+            // return _allowances[src][dst];
             mstore(0x00, src)
             mstore(0x20, 0x01)
             mstore(0x20, keccak256(0x00, 0x40))
