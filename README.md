@@ -69,3 +69,27 @@ yarn test
 | OpenZeppelinERC20 | 23368     |
 | SolmateERC20      | 23427     |
 | YulERC20          | **23362** |
+
+### decimals
+
+| Contract          | Gas Cost  |
+| ----------------- | --------- |
+| OpenZeppelinERC20 | 21308     |
+| SolmateERC20      | 21313     |
+| YulERC20          | **21240** |
+
+### symbol
+
+| Contract          | Gas Cost  |
+| ----------------- | --------- |
+| OpenZeppelinERC20 | 24327     |
+| SolmateERC20      | 24319     |
+| YulERC20          | **23386** |
+
+### name
+
+| Contract          | Gas Cost  |
+| ----------------- | --------- |
+| OpenZeppelinERC20 | 24284     |
+| SolmateERC20      | 24276     |
+| YulERC20          | **23365** |
