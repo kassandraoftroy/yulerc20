@@ -1,7 +1,12 @@
 import { expect } from "chai";
 import hre = require("hardhat");
 import { Signer } from "ethers";
-import { OpenZeppelinERC20, SolmateERC20, YulERC20 } from "../typechain";
+import {
+  OpenZeppelinERC20,
+  SolmateERC20,
+  YulERC20,
+  IERC20Call,
+} from "../typechain";
 
 const { ethers, deployments } = hre;
 
@@ -124,6 +129,15 @@ describe("YulERC20 test", async function () {
           tokens[i].connect(user).transfer(ethers.constants.AddressZero, oneEth)
         ).to.be.reverted;
       }
+
+      const itoken: IERC20Call = (await ethers.getContractAt(
+        "IERC20Call",
+        tokens[i].address,
+        user
+      )) as IERC20Call;
+      await itoken.balanceOf(await user.getAddress());
+      await itoken.allowance(await user.getAddress(), await user2.getAddress());
+      await itoken.totalSupply();
     }
   });
 });

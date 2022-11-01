@@ -41,16 +41,16 @@ abstract contract ERC20 {
 
     // max 256-bit integer, i.e. 2**256-1
     bytes32 internal constant _MAX =
-        0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+        0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
 
     // token balances mapping, storage slot 0x00
-    mapping(address => uint256) public balanceOf;
+    mapping(address => uint256) internal _balances;
 
     // token allowances nested mapping, storage slot 0x01
-    mapping(address => mapping(address => uint256)) public allowance;
+    mapping(address => mapping(address => uint256)) internal _allowances;
 
     // token total supply, storage slot 0x02
-    uint256 public totalSupply;
+    uint256 internal _totalSupply;
 
     // token name string, storage slot 0x03
     string public name;
@@ -189,6 +189,42 @@ abstract contract ERC20 {
 
             // return true
             mstore(0x00, 0x01)
+            return(0x00, 0x20)
+        }
+    }
+
+    function allowance(address src, address dst)
+        public
+        view
+        virtual
+        returns (uint256)
+    {
+        assembly {
+            // prepare nestled mapping storage slot computation
+            mstore(0x00, src)
+            mstore(0x20, 0x01)
+            mstore(0x20, keccak256(0x00, 0x40))
+            mstore(0x00, dst)
+
+            // load and return value at storage slot
+            mstore(0x00, sload(keccak256(0x00, 0x40)))
+            return(0x00, 0x20)
+        }
+    }
+
+    function balanceOf(address src) public view virtual returns (uint256) {
+        assembly {
+            // load and return value at owner balance storage slot
+            mstore(0x00, src)
+            mstore(0x20, 0x00)
+            mstore(0x00, sload(keccak256(0x00, 0x40)))
+            return(0x00, 0x20)
+        }
+    }
+
+    function totalSupply() public view virtual returns (uint256) {
+        assembly {
+            mstore(0x00, sload(0x02))
             return(0x00, 0x20)
         }
     }
