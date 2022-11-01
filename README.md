@@ -45,3 +45,27 @@ yarn test
 | OpenZeppelinERC20 | 33714     |
 | SolmateERC20      | 31995     |
 | YulERC20          | **31724** |
+
+### allowance
+
+| Contract          | Gas Cost  |
+| ----------------- | --------- |
+| OpenZeppelinERC20 | 24556     |
+| SolmateERC20      | 24535     |
+| YulERC20          | **24481** |
+
+### balanceOf
+
+| Contract          | Gas Cost  |
+| ----------------- | --------- |
+| OpenZeppelinERC20 | 23993     |
+| SolmateERC20      | 23962     |
+| YulERC20          | **23939** |
+
+### totalSupply
+
+| Contract          | Gas Cost  |
+| ----------------- | --------- |
+| OpenZeppelinERC20 | 23368     |
+| SolmateERC20      | 23427     |
+| YulERC20          | **23362** |
