@@ -235,6 +235,7 @@ abstract contract ERC20 {
     function name() public view virtual returns (string memory) {
         assembly {
             // return _name;
+            /// @dev NOTE below only works if _name string is guaranteed to be < 32 bytes
             let nameData := sload(0x03)
             let nameLenByte := and(nameData, 0xff)
             mstore(0x00, 0x20)
@@ -247,6 +248,7 @@ abstract contract ERC20 {
     function symbol() public view virtual returns (string memory) {
         assembly {
             // return _symbol;
+            /// @dev NOTE below only works if _symbol string is guaranteed to <32 bytes
             let symbolData := sload(0x04)
             let symbolLenByte := and(symbolData, 0xff)
             mstore(0x00, 0x20)
