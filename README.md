@@ -2,11 +2,25 @@
 
 **NOT MEANT FOR PRODUCTION - UNAUDITED - USE AT OWN RISK**
 
-ERC20 implementation using only inline assembly YUL. Basically, it is a hyper gas optimized ERC20. It improves on gas consupmtion in **every** public and external method over the major ERC20.sol implementations (OpenZeppelin, Solmate). Optimizing view/pure calls can matter too, as many ERC20 view methods get used inside of state changing methods. See below for full gas comparison.
+ERC20 implementation using only inline assembly YUL. Basically, it is a hyper gas optimized ERC20 base implementation for solidity developers. It improves on gas consupmtion in **every** `public` & `external` method over the leading ERC20.sol implementations (OpenZeppelin, Solmate). Optimizing view/pure calls can matter too, as many ERC20 view methods get used inside of state changing methods. See below for full gas comparison.
 
 Mostly this is useful as a reference implementation to learn the basics of inline assembly if you are already familiar with canonical solidity ERC20 implementations
 
 ## Usage
+
+install with
+
+```
+npm install yulerc20
+```
+
+then you could import this as your base ERC20 contract implementation:
+
+```
+import {ERC20} from "yulerc20/contracts/ERC20.sol";
+```
+
+## Test
 
 fill in ALCHEMY_ID in a `.env` (see `.env.example` for all environment vars)
 

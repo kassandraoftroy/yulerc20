@@ -128,7 +128,12 @@ describe("YulERC20 test", async function () {
         await expect(
           tokens[i].connect(user).transfer(ethers.constants.AddressZero, oneEth)
         ).to.be.reverted;
+
+        await expect(
+          tokens[i].connect(user).mint(ethers.constants.AddressZero, oneEth)
+        ).to.be.reverted;
       }
+
       const hugeNumber = ethers.BigNumber.from(
         "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0"
       );
