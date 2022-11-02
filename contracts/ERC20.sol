@@ -77,6 +77,7 @@ abstract contract ERC20 {
 
     constructor(string memory name_, string memory symbol_) {
         /// @dev constructor in solidity bc cannot handle immutables with inline assembly
+        /// also, constructor gas optimization not really important (one time cost)
 
         // get string lengths
         bytes memory nameB = bytes(name_);
@@ -111,7 +112,7 @@ abstract contract ERC20 {
                 revert(0x00, 0x04)
             }
 
-            // _balances[src] -= amount;
+            // _balances[msg.sender] -= amount;
             mstore(0x00, caller())
             mstore(0x20, 0x00)
             let srcSlot := keccak256(0x00, 0x40)
@@ -129,7 +130,7 @@ abstract contract ERC20 {
             let dstSlot := keccak256(0x00, 0x40)
             sstore(dstSlot, add(sload(dstSlot), amount))
 
-            // emit Transfer(src, dst, amount);
+            // emit Transfer(msg.sender, dst, amount);
             mstore(0x00, amount)
             log3(0x00, 0x20, _TRANSFER_HASH, caller(), dst)
 
