@@ -46,7 +46,9 @@ describe("YulERC20 test", async function () {
     for (let i = 0; i < tokens.length; i++) {
       const decimals = await tokens[i].decimals();
       expect(decimals).to.be.equal(18);
+      console.log("calling name!", i);
       const name = await tokens[i].name();
+      console.log("name called!", i);
       expect(name).to.be.equal("abc");
       const symbol = await tokens[i].symbol();
       expect(symbol).to.be.equal("ABC");
