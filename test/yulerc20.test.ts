@@ -38,11 +38,6 @@ describe("YulERC20 test", async function () {
   it("tests erc20", async function () {
     const oneEth = ethers.utils.parseEther("1");
     const tokens = [ozToken, smToken, yulToken];
-    // const val = await yulToken.getSlot(3)
-    // const val2 = await yulToken.getSlot(4)
-    // const val3 = await yulToken.getSlot(5)
-    // const val4 = await yulToken.getSlot(6)
-    // console.log(val, val2, val3, val4);
     for (let i = 0; i < tokens.length; i++) {
       const decimals = await tokens[i].decimals();
       expect(decimals).to.be.equal(18);

@@ -4,19 +4,21 @@ pragma solidity ^0.8.4;
 
 /// @notice ERC20 with max inline assembly. Comments in assembly blocks are solidity translations
 /// @author kassandra.eth
-/// @dev name_ and symbol_ string contructor args must be <32 bytes (optimizes string sloads)
+/// @dev name_ and symbol_ string contructor args must be <=32 bytes
 /// Do not manually set _balances without updating _supply (could cause math problems)
 /// Do not adjust state layout here without fixing hardcoded sload/sstore slots across logic
-/// Custom errors for efficient but useful reverts
+/// We use custom errors for efficient but useful reverts
 /// Solidity translation comments assume same 0.8+ solidity version
 
 // solhint-disable-next-line max-states-count
 abstract contract ERC20 {
+    error StringTooLong(string s);
+
     error InsufficientBalance();
 
     error InsufficientAllowance();
 
-    error AddressZero();
+    error InvalidRecipientZero();
 
     error Overflow();
 
@@ -40,9 +42,9 @@ abstract contract ERC20 {
     bytes32 internal constant _INSUFFICIENT_ALLOWANCE_SELECTOR =
         0x13be252b00000000000000000000000000000000000000000000000000000000;
 
-    // first 4 bytes of keccak256("AddressZero()") right padded with 0s
-    bytes32 internal constant _ADDRESS_ZERO_SELECTOR =
-        0x9fabe1c100000000000000000000000000000000000000000000000000000000;
+    // first 4 bytes of keccak256("InvalidRecipientZero()") right padded with 0s
+    bytes32 internal constant _RECIPIENT_ZERO_SELECTOR =
+        0x4c131ee600000000000000000000000000000000000000000000000000000000;
 
     // first 4 bytes of keccak256("Overflow()") right padded with 0s
     bytes32 internal constant _OVERFLOW_SELECTOR =
@@ -51,6 +53,18 @@ abstract contract ERC20 {
     // max 256-bit integer, i.e. 2**256-1
     bytes32 internal constant _MAX =
         0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+
+    // token name, stored in an immutable bytes32 (constructor arg must be <=32 byte string)
+    bytes32 internal immutable _name;
+
+    // token symbol, stored in an immutable bytes32 (constructor arg must be <=32 byte string)
+    bytes32 internal immutable _symbol;
+
+    // token name string length
+    uint256 internal immutable _nameLen;
+
+    // token symbol string length
+    uint256 internal immutable _symbolLen;
 
     // token balances mapping, storage slot 0x00
     mapping(address => uint256) internal _balances;
@@ -61,17 +75,28 @@ abstract contract ERC20 {
     // token total supply, storage slot 0x02
     uint256 internal _supply;
 
-    // token name string, storage slot 0x03 - enforce short string in constructor
-    string internal _name;
-
-    // token symbol string, storage slot 0x04 - enforce short string in constructor
-    string internal _symbol;
-
     constructor(string memory name_, string memory symbol_) {
-        // require strings are short (< 32 bytes)
-        require(bytes(name_).length < 32 && bytes(symbol_).length < 32);
-        _name = name_;
-        _symbol = symbol_;
+        /// @dev constructor in solidity bc cannot handle immutables with inline assembly
+
+        // get string lengths
+        bytes memory nameB = bytes(name_);
+        bytes memory symbolB = bytes(symbol_);
+        uint256 nameLen = nameB.length;
+        uint256 symbolLen = symbolB.length;
+
+        // check strings are <=32 bytes
+        if (nameLen > 32) {
+            revert StringTooLong(name_);
+        }
+        if (symbolLen > 32) {
+            revert StringTooLong(symbol_);
+        }
+
+        // set immutables
+        _name = bytes32(nameB);
+        _symbol = bytes32(symbolB);
+        _nameLen = nameLen;
+        _symbolLen = symbolLen;
     }
 
     function transfer(address dst, uint256 amount)
@@ -82,7 +107,7 @@ abstract contract ERC20 {
         assembly {
             // require(dst != address(0), "Address Zero");
             if iszero(dst) {
-                mstore(0x00, _ADDRESS_ZERO_SELECTOR)
+                mstore(0x00, _RECIPIENT_ZERO_SELECTOR)
                 revert(0x00, 0x04)
             }
 
@@ -123,7 +148,7 @@ abstract contract ERC20 {
         assembly {
             // require(dst != address(0), "Address Zero");
             if iszero(dst) {
-                mstore(0x00, _ADDRESS_ZERO_SELECTOR)
+                mstore(0x00, _RECIPIENT_ZERO_SELECTOR)
                 revert(0x00, 0x04)
             }
 
@@ -234,28 +259,28 @@ abstract contract ERC20 {
     }
 
     function name() public view virtual returns (string memory) {
+        bytes32 myName = _name;
+        uint256 myNameLen = _nameLen;
         assembly {
-            // return _name;
-            /// @dev NOTE below only works if _name string is guaranteed to be < 32 bytes
-            let nameData := sload(0x03)
-            let nameLenByte := and(nameData, 0xff)
-            mstore(0x00, 0x20)
-            mstore(0x20, div(nameLenByte, 0x02))
-            mstore(0x40, sub(nameData, nameLenByte))
-            return(0x00, 0x60)
+            // return string(bytes(_name));
+            let memptr := mload(0x40)
+            mstore(memptr, 0x20)
+            mstore(add(memptr, 0x20), myNameLen)
+            mstore(add(memptr, 0x40), myName)
+            return(memptr, 0x60)
         }
     }
 
     function symbol() public view virtual returns (string memory) {
+        bytes32 mySymbol = _symbol;
+        uint256 mySymbolLen = _symbolLen;
         assembly {
-            // return _symbol;
-            /// @dev NOTE below only works if _symbol string is guaranteed to <32 bytes
-            let symbolData := sload(0x04)
-            let symbolLenByte := and(symbolData, 0xff)
-            mstore(0x00, 0x20)
-            mstore(0x20, div(symbolLenByte, 0x02))
-            mstore(0x40, sub(symbolData, symbolLenByte))
-            return(0x00, 0x60)
+            // return string(bytes(_symbol));
+            let memptr := mload(0x40)
+            mstore(memptr, 0x20)
+            mstore(add(memptr, 0x20), mySymbolLen)
+            mstore(add(memptr, 0x40), mySymbol)
+            return(memptr, 0x60)
         }
     }
 

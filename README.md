@@ -84,7 +84,7 @@ yarn test
 | ----------------- | --------- |
 | OpenZeppelinERC20 | 24327     |
 | SolmateERC20      | 24319     |
-| YulERC20          | **23386** |
+| YulERC20          | **21309** |
 
 ### name
 
@@ -92,4 +92,4 @@ yarn test
 | ----------------- | --------- |
 | OpenZeppelinERC20 | 24284     |
 | SolmateERC20      | 24276     |
-| YulERC20          | **23365** |
+| YulERC20          | **21288** |
