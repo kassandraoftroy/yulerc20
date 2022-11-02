@@ -69,7 +69,7 @@ abstract contract ERC20 {
     // token balances mapping, storage slot 0x00
     mapping(address => uint256) internal _balances;
 
-    // token allowances nested mapping, storage slot 0x01
+    // token allowances mapping (owner=>spender=>amount), storage slot 0x01
     mapping(address => mapping(address => uint256)) internal _allowances;
 
     // token total supply, storage slot 0x02
@@ -295,6 +295,12 @@ abstract contract ERC20 {
 
     function _mint(address dst, uint256 amount) internal virtual {
         assembly {
+            // require(dst != address(0), "Address Zero");
+            if iszero(dst) {
+                mstore(0x00, _RECIPIENT_ZERO_SELECTOR)
+                revert(0x00, 0x04)
+            }
+
             // _supply += amount;
             let newSupply := add(amount, sload(0x02))
 
