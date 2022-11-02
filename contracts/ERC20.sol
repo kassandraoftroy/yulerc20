@@ -2,9 +2,9 @@
 // solhint-disable-next-line compiler-version
 pragma solidity ^0.8.4;
 
-/// @notice ERC20 with max inline assembly. Comments in assembly blocks are solidity translations
+/// @notice ERC20 using max inline assembly, with solidity translation comments in assembly blocks
 /// @author kassandra.eth
-/// @dev name_ and symbol_ string contructor args must be <=32 bytes
+/// @dev name_ and symbol_ string contructor args must be 32 bytes or smaller
 /// Do not manually set _balances without updating _supply (could cause math problems)
 /// Do not adjust state layout here without fixing hardcoded sload/sstore slots across logic
 /// We use custom errors for efficient but useful reverts
@@ -153,7 +153,7 @@ abstract contract ERC20 {
                 revert(0x00, 0x04)
             }
 
-            // uint256 allowance = _allowances[msg.sender][dst];
+            // uint256 allowanceVal = _allowances[msg.sender][dst];
             mstore(0x00, src)
             mstore(0x20, 0x01)
             mstore(0x20, keccak256(0x00, 0x40))
