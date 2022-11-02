@@ -123,12 +123,43 @@ describe("YulERC20 test", async function () {
       // eslint-disable-next-line no-unsafe-optional-chaining
       expect(event3?.address).to.be.equal(tokens[i].address);
 
-      // solmate does not protect against transfers to address(0)
+      // solmate does not protect against transfers to address(0) so we skip this check there
       if (tokens[i].address != smToken.address) {
         await expect(
           tokens[i].connect(user).transfer(ethers.constants.AddressZero, oneEth)
         ).to.be.reverted;
       }
+      const hugeNumber = ethers.BigNumber.from(
+        "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0"
+      );
+      await expect(
+        tokens[i].connect(user).mint(await user2.getAddress(), hugeNumber)
+      ).to.be.reverted;
+      await expect(
+        tokens[i].connect(user2).mint(await user2.getAddress(), oneEth)
+      ).to.be.reverted;
+      await tokens[i].connect(user).mint(await user2.getAddress(), oneEth);
+      const balCheck = await tokens[i].balanceOf(await user.getAddress());
+      const receiverBalCheck = await tokens[i].balanceOf(
+        await user2.getAddress()
+      );
+      expect(balCheck).to.be.equal(balEnd);
+      expect(receiverBalEnd).to.be.lt(receiverBalCheck);
+      expect(receiverBalEnd.add(oneEth)).to.be.equal(receiverBalCheck);
+
+      const newSupply = await tokens[i].totalSupply();
+      expect(supply).to.be.lt(newSupply);
+      expect(supply.add(oneEth)).to.be.equal(newSupply);
+
+      await expect(tokens[i].connect(user2).burn(supply)).to.be.reverted;
+      await tokens[i].connect(user2).burn(receiverBalCheck);
+
+      const bal0 = await tokens[i].balanceOf(user2.getAddress());
+      expect(bal0).to.equal(ethers.constants.Zero);
+
+      const supplyCheck = await tokens[i].totalSupply();
+      expect(supplyCheck).to.be.lt(newSupply);
+      expect(supplyCheck.add(receiverBalCheck)).to.be.equal(newSupply);
 
       const itoken: IERC20Call = (await ethers.getContractAt(
         "IERC20Call",

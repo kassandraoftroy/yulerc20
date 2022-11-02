@@ -54,6 +54,22 @@ yarn test
 | SolmateERC20      | 24535     |
 | YulERC20          | **24481** |
 
+### mint
+
+| Contract          | Gas Cost  |
+| ----------------- | --------- |
+| OpenZeppelinERC20 | 51317     |
+| SolmateERC20      | 51194     |
+| YulERC20          | **51079** |
+
+### burn
+
+| Contract          | Gas Cost  |
+| ----------------- | --------- |
+| OpenZeppelinERC20 | 28900     |
+| SolmateERC20      | 28768     |
+| YulERC20          | **28646** |
+
 ### balanceOf
 
 | Contract          | Gas Cost  |
