@@ -1,8 +1,8 @@
 # Yul ERC20
 
-ERC20 implementation using only inline assembly YUL. Basically, it is a hyper gas optimized ERC20.
-
 **NOT MEANT FOR PRODUCTION - UNAUDITED - USE AT OWN RISK**
+
+ERC20 implementation using only inline assembly YUL. Basically, it is a hyper gas optimized ERC20. It improves on gas consupmtion in **every** public and external method over the major ERC20.sol implementations (OpenZeppelin, Solmate). Optimizing view/pure calls can matter too, as many ERC20 view methods get used inside of state changing methods. See below for full gas comparison.
 
 Mostly this is useful as a reference implementation to learn the basics of inline assembly if you are already familiar with canonical solidity ERC20 implementations
 
