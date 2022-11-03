@@ -11,14 +11,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     hre.network.name === "optimism"
   ) {
     console.log(
-      `Deploying YulERC20 to ${hre.network.name}. Hit ctrl + c to abort`
+      `Deploying TestERC20Gas to ${hre.network.name}. Hit ctrl + c to abort`
     );
     await sleep(10000);
   }
 
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
-  await deploy("YulERC20", {
+  await deploy("TestERC20Gas", {
     from: deployer,
     args: [],
     log: hre.network.name != "hardhat" ? true : false,
@@ -35,4 +35,4 @@ func.skip = async (hre: HardhatRuntimeEnvironment) => {
     hre.network.name === "optimism";
   return shouldSkip ? true : false;
 };
-func.tags = ["YulERC20"];
+func.tags = ["TestERC20Gas"];

@@ -20,7 +20,11 @@ abstract contract ERC20 {
 
     error InvalidRecipientZero();
 
+    error InvalidSignature();
+
     error Overflow();
+
+    error Expired();
 
     event Transfer(address indexed src, address indexed dst, uint256 amount);
 
@@ -46,9 +50,31 @@ abstract contract ERC20 {
     bytes32 internal constant _RECIPIENT_ZERO_SELECTOR =
         0x4c131ee600000000000000000000000000000000000000000000000000000000;
 
+    // first 4 bytes of keccak256("InvalidSignature()") right padded with 0s
+    bytes32 internal constant _INVALID_SIG_SELECTOR =
+        0x8baa579f00000000000000000000000000000000000000000000000000000000;
+
     // first 4 bytes of keccak256("Overflow()") right padded with 0s
     bytes32 internal constant _OVERFLOW_SELECTOR =
         0x35278d1200000000000000000000000000000000000000000000000000000000;
+
+    // first 4 bytes of keccak256("Expired()") right padded with 0s
+    bytes32 internal constant _EXPIRED_SELECTOR =
+        0x203d82d800000000000000000000000000000000000000000000000000000000;
+
+    // solhint-disable-next-line max-line-length
+    // keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+    bytes32 internal constant _EIP712_DOMAIN_PREFIX_HASH =
+        0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
+
+    // solhint-disable-next-line max-line-length
+    // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
+    bytes32 internal constant _PERMIT_HASH =
+        0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+
+    // keccak256("1")
+    bytes32 internal constant _VERSION_1_HASH =
+        0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6;
 
     // max 256-bit integer, i.e. 2**256-1
     bytes32 internal constant _MAX =
@@ -66,6 +92,15 @@ abstract contract ERC20 {
     // token symbol string length
     uint256 internal immutable _symbolLen;
 
+    // initial block.chainid, only changes in a future hardfork scenario
+    uint256 internal immutable _initialChainId;
+
+    // initial domainSeparator only changes in a future hardfork scenario
+    bytes32 internal immutable _initialDomainSeparator;
+
+    // hash of the name string i.e. keccak256(bytes(_name))
+    bytes32 internal immutable _nameHash;
+
     // token balances mapping, storage slot 0x00
     mapping(address => uint256) internal _balances;
 
@@ -74,6 +109,9 @@ abstract contract ERC20 {
 
     // token total supply, storage slot 0x02
     uint256 internal _supply;
+
+    // permit nonces, storage slot 0x03
+    mapping(address => uint256) internal _nonces;
 
     constructor(string memory name_, string memory symbol_) {
         /// @dev constructor in solidity bc cannot handle immutables with inline assembly
@@ -93,17 +131,24 @@ abstract contract ERC20 {
             revert StringTooLong(symbol_);
         }
 
+        // compute domain separator
+        bytes32 nameHash = keccak256(nameB);
+        bytes32 initialDomainSeparator = _computeDomainSeparator(nameHash);
+
         // set immutables
         _name = bytes32(nameB);
         _symbol = bytes32(symbolB);
         _nameLen = nameLen;
         _symbolLen = symbolLen;
+        _initialChainId = block.chainid;
+        _nameHash = nameHash;
+        _initialDomainSeparator = initialDomainSeparator;
     }
 
     function transfer(address dst, uint256 amount)
-        external
+        public
         virtual
-        returns (bool)
+        returns (bool success)
     {
         assembly {
             // require(dst != address(0), "Address Zero");
@@ -135,8 +180,7 @@ abstract contract ERC20 {
             log3(0x00, 0x20, _TRANSFER_HASH, caller(), dst)
 
             // return true;
-            mstore(0x00, 0x01)
-            return(0x00, 0x20)
+            success := 0x01
         }
     }
 
@@ -145,7 +189,7 @@ abstract contract ERC20 {
         address src,
         address dst,
         uint256 amount
-    ) external virtual returns (bool) {
+    ) public virtual returns (bool success) {
         assembly {
             // require(dst != address(0), "Address Zero");
             if iszero(dst) {
@@ -196,15 +240,14 @@ abstract contract ERC20 {
             log3(0x00, 0x20, _TRANSFER_HASH, src, dst)
 
             // return true;
-            mstore(0x00, 0x01)
-            return(0x00, 0x20)
+            success := 0x01
         }
     }
 
     function approve(address dst, uint256 amount)
-        external
+        public
         virtual
-        returns (bool)
+        returns (bool success)
     {
         assembly {
             // _allowances[msg.sender][dst] = amount;
@@ -219,8 +262,86 @@ abstract contract ERC20 {
             log3(0x00, 0x20, _APPROVAL_HASH, caller(), dst)
 
             // return true;
-            mstore(0x00, 0x01)
-            return(0x00, 0x20)
+            success := 0x01
+        }
+    }
+
+    // solhint-disable-next-line function-max-lines
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public virtual {
+        assembly {
+            // require(deadline >= block.timestamp, "Expired");
+            if lt(timestamp(), deadline) {
+                mstore(0x00, _EXPIRED_SELECTOR)
+                revert(0x00, 0x04)
+            }
+        }
+
+        bytes32 separator = DOMAIN_SEPARATOR();
+
+        assembly {
+            // uint256 nonce = nonces[owner];
+            mstore(0x00, owner)
+            mstore(0x20, 0x03)
+            let nonceSlot := keccak256(0x00, 0x40)
+            let nonce := sload(nonceSlot)
+
+            // bytes32 innerHash =
+            //     keccak256(abi.encode(_PERMIT_HASH, owner, spender, value, nonce, deadline))
+            let memptr := mload(0x40)
+            mstore(memptr, _PERMIT_HASH)
+            mstore(add(memptr, 0x20), owner)
+            mstore(add(memptr, 0x40), spender)
+            mstore(add(memptr, 0x60), value)
+            mstore(add(memptr, 0x80), nonce)
+            mstore(add(memptr, 0x100), deadline)
+            mstore(add(memptr, 0x22), keccak256(memptr, 0x120))
+
+            // bytes32 hash = keccak256(abi.encodePacked("\x19\x01", separator, innerHash))
+            mstore8(memptr, 0x19)
+            mstore8(add(memptr, 0x01), 0x01)
+            mstore(add(memptr, 0x02), separator)
+            mstore(memptr, keccak256(memptr, 0x42))
+
+            // address recovered = ecrecover(hash, v, r, s)
+            mstore(add(memptr, 0x20), v)
+            mstore(add(memptr, 0x40), r)
+            mstore(add(memptr, 0x60), s)
+
+            if iszero(staticcall(not(0x00), 0x01, memptr, 0x80, memptr, 0x20)) {
+                revert(0x00, 0x00)
+            }
+
+            let size := returndatasize()
+            returndatacopy(memptr, 0, size)
+            let recovered := mload(memptr)
+
+            // require(recovered != address(0) && recovered == owner, "Invalid Signature");
+            if or(iszero(recovered), not(eq(recovered, owner))) {
+                mstore(0x00, _INVALID_SIG_SELECTOR)
+                revert(0x00, 0x04)
+            }
+
+            // unchecked { ++nonces[owner]; }
+            sstore(nonceSlot, add(nonce, 0x01))
+
+            // _allowances[recovered][spender] = value;
+            mstore(0x00, recovered)
+            mstore(0x20, 0x01)
+            mstore(0x20, keccak256(0x00, 0x40))
+            mstore(0x00, spender)
+            sstore(keccak256(0x00, 0x40), value)
+
+            // emit Approval
+            mstore(0x00, value)
+            log3(0x00, 0x20, _APPROVAL_HASH, recovered, spender)
         }
     }
 
@@ -228,7 +349,7 @@ abstract contract ERC20 {
         public
         view
         virtual
-        returns (uint256)
+        returns (uint256 amount)
     {
         assembly {
             // return _allowances[src][dst];
@@ -236,60 +357,101 @@ abstract contract ERC20 {
             mstore(0x20, 0x01)
             mstore(0x20, keccak256(0x00, 0x40))
             mstore(0x00, dst)
-            mstore(0x00, sload(keccak256(0x00, 0x40)))
-            return(0x00, 0x20)
+            amount := sload(keccak256(0x00, 0x40))
         }
     }
 
-    function balanceOf(address src) public view virtual returns (uint256) {
+    function balanceOf(address src)
+        public
+        view
+        virtual
+        returns (uint256 amount)
+    {
         assembly {
             // return _balances[src];
             mstore(0x00, src)
             mstore(0x20, 0x00)
-            mstore(0x00, sload(keccak256(0x00, 0x40)))
-            return(0x00, 0x20)
+            amount := sload(keccak256(0x00, 0x40))
         }
     }
 
-    function totalSupply() public view virtual returns (uint256) {
+    function nonces(address src) public view virtual returns (uint256 nonce) {
         assembly {
-            // return _supply;
-            mstore(0x00, sload(0x02))
-            return(0x00, 0x20)
+            mstore(0x00, src)
+            mstore(0x20, 0x03)
+            nonce := sload(keccak256(0x00, 0x40))
         }
     }
 
-    function name() public view virtual returns (string memory) {
+    function totalSupply() public view virtual returns (uint256 amount) {
+        assembly {
+            amount := sload(0x02)
+        }
+    }
+
+    function name() public view virtual returns (string memory value) {
         bytes32 myName = _name;
         uint256 myNameLen = _nameLen;
         assembly {
             // return string(bytes(_name));
-            let memptr := mload(0x40)
-            mstore(memptr, 0x20)
-            mstore(add(memptr, 0x20), myNameLen)
-            mstore(add(memptr, 0x40), myName)
-            return(memptr, 0x60)
+            value := mload(0x40)
+            mstore(0x40, add(value, 0x40))
+            mstore(value, myNameLen)
+            mstore(add(value, 0x20), myName)
         }
     }
 
-    function symbol() public view virtual returns (string memory) {
+    function symbol() public view virtual returns (string memory value) {
         bytes32 mySymbol = _symbol;
         uint256 mySymbolLen = _symbolLen;
         assembly {
             // return string(bytes(_symbol));
-            let memptr := mload(0x40)
-            mstore(memptr, 0x20)
-            mstore(add(memptr, 0x20), mySymbolLen)
-            mstore(add(memptr, 0x40), mySymbol)
-            return(memptr, 0x60)
+            value := mload(0x40)
+            mstore(0x40, add(value, 0x40))
+            mstore(value, mySymbolLen)
+            mstore(add(value, 0x20), mySymbol)
         }
     }
 
-    function decimals() public pure virtual returns (uint8) {
+    function decimals() public pure virtual returns (uint8 amount) {
         assembly {
             // return 18;
-            mstore(0x00, 0x12)
-            return(0x00, 0x20)
+            amount := 0x12
+        }
+    }
+
+    // solhint-disable-next-line func-name-mixedcase
+    function DOMAIN_SEPARATOR()
+        public
+        view
+        virtual
+        returns (bytes32 domainSeparator)
+    {
+        uint256 chainId = _initialChainId;
+        bytes32 separator = _initialDomainSeparator;
+        assembly {
+            if eq(chainid(), chainId) {
+                domainSeparator := separator
+            }
+        }
+
+        return _computeDomainSeparator(_nameHash);
+    }
+
+    function _computeDomainSeparator(bytes32 nameHash)
+        internal
+        view
+        virtual
+        returns (bytes32 domainSeparator)
+    {
+        assembly {
+            let memptr := mload(0x40)
+            mstore(memptr, _EIP712_DOMAIN_PREFIX_HASH)
+            mstore(add(memptr, 0x20), nameHash)
+            mstore(add(memptr, 0x40), _VERSION_1_HASH)
+            mstore(add(memptr, 0x60), chainid())
+            mstore(add(memptr, 0x80), address())
+            domainSeparator := keccak256(memptr, 0x100)
         }
     }
 
