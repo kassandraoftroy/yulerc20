@@ -1,11 +1,11 @@
 import { expect } from "chai";
 import hre = require("hardhat");
-import { Signer } from "ethers";
+import { Contract, Signer } from "ethers";
 import {
   OpenZeppelinERC20,
   SolmateERC20,
   YulERC20,
-  IERC20Call,
+  //TestERC20Gas
 } from "../typechain";
 
 const { ethers, deployments } = hre;
@@ -18,6 +18,7 @@ describe("YulERC20 test", async function () {
   let ozToken: OpenZeppelinERC20;
   let smToken: SolmateERC20;
   let yulToken: YulERC20;
+  // let testGas: TestERC20Gas;
 
   beforeEach("setup", async function () {
     if (hre.network.name !== "hardhat") {
@@ -34,10 +35,12 @@ describe("YulERC20 test", async function () {
     )) as OpenZeppelinERC20;
     smToken = (await ethers.getContract("SolmateERC20", user)) as SolmateERC20;
     yulToken = (await ethers.getContract("YulERC20", user)) as YulERC20;
+    // testGas = (await ethers.getContract("TestERC20Gas", user)) as TestERC20Gas;
   });
   it("tests erc20", async function () {
     const oneEth = ethers.utils.parseEther("1");
     const tokens = [ozToken, smToken, yulToken];
+    // const names = ["OZ", "Solmate", "Yul"];
     for (let i = 0; i < tokens.length; i++) {
       const decimals = await tokens[i].decimals();
       expect(decimals).to.be.equal(18);
@@ -166,17 +169,28 @@ describe("YulERC20 test", async function () {
       expect(supplyCheck).to.be.lt(newSupply);
       expect(supplyCheck.add(receiverBalCheck)).to.be.equal(newSupply);
 
-      const itoken: IERC20Call = (await ethers.getContractAt(
-        "IERC20Call",
+      const itoken: Contract = await ethers.getContractAt(
+        [
+          "function balanceOf(address) external returns (uint256)",
+          "function allowance(address, address) external returns (uint256)",
+          "function totalSupply() external returns (uint256)",
+          "function name() external returns (string memory)",
+          "function symbol() external returns (string memory)",
+          "function decimals() external returns (uint8)",
+        ],
         tokens[i].address,
         user
-      )) as IERC20Call;
+      );
       await itoken.balanceOf(await user.getAddress());
       await itoken.allowance(await user.getAddress(), await user2.getAddress());
       await itoken.totalSupply();
       await itoken.name();
       await itoken.symbol();
       await itoken.decimals();
+
+      // const ret = await testGas.test(tokens[i].address);
+      // const vals = ret.map((x:any) => x.toString());
+      // console.log(names[i], vals);
     }
   });
 });
