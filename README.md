@@ -20,7 +20,7 @@ then you could import this as your base ERC20 contract implementation:
 import {ERC20} from "yulerc20/contracts/ERC20.sol";
 ```
 
-or 
+or
 
 ```
 import {ERC20External} from "yulerc20/contracts/ERC20External.sol";
@@ -67,7 +67,6 @@ yarn test
 | SolmateERC20      | 51251     |
 | YulERC20          | 51167     |
 | YulERC20Ext       | **51073** |
-
 
 ### transferFrom
 
