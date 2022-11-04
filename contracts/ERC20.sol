@@ -314,7 +314,7 @@ abstract contract ERC20 {
             let recovered := mload(memptr)
 
             // require(recovered != address(0) && recovered == owner, "Invalid Signature");
-            if or(iszero(recovered), iszero(eq(recovered, owner))) {
+            if iszero(and(eq(recovered, owner), gt(recovered, 0x00))) {
                 mstore(0x00, _INVALID_SIG_SELECTOR)
                 revert(0x00, 0x04)
             }

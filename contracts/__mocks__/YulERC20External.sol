@@ -3,7 +3,7 @@ pragma solidity 0.8.13;
 
 import {ERC20External} from "../ERC20External.sol";
 
-contract YulERC20Ext is ERC20External {
+contract YulERC20External is ERC20External {
     address public immutable owner;
 
     constructor() ERC20External("abc", "ABC") {
