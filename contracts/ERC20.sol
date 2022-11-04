@@ -12,24 +12,6 @@ pragma solidity ^0.8.4;
 
 // solhint-disable-next-line max-states-count
 abstract contract ERC20 {
-    error StringTooLong(string s);
-
-    error InsufficientBalance();
-
-    error InsufficientAllowance();
-
-    error InvalidRecipientZero();
-
-    error InvalidSignature();
-
-    error Overflow();
-
-    error Expired();
-
-    event Transfer(address indexed src, address indexed dst, uint256 amount);
-
-    event Approval(address indexed src, address indexed dst, uint256 amount);
-
     // keccak256("Transfer(address,address,uint256)")
     bytes32 internal constant _TRANSFER_HASH =
         0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
@@ -54,13 +36,17 @@ abstract contract ERC20 {
     bytes32 internal constant _INVALID_SIG_SELECTOR =
         0x8baa579f00000000000000000000000000000000000000000000000000000000;
 
-    // first 4 bytes of keccak256("Overflow()") right padded with 0s
-    bytes32 internal constant _OVERFLOW_SELECTOR =
-        0x35278d1200000000000000000000000000000000000000000000000000000000;
-
     // first 4 bytes of keccak256("Expired()") right padded with 0s
     bytes32 internal constant _EXPIRED_SELECTOR =
         0x203d82d800000000000000000000000000000000000000000000000000000000;
+
+    // first 4 bytes of keccak256("StringTooLong()") right padded with 0s
+    bytes32 internal constant _STRING_TOO_LONG_SELECTOR =
+        0xb11b2ad800000000000000000000000000000000000000000000000000000000;
+
+    // first 4 bytes of keccak256("Overflow()") right padded with 0s
+    bytes32 internal constant _OVERFLOW_SELECTOR =
+        0x35278d1200000000000000000000000000000000000000000000000000000000;
 
     // solhint-disable-next-line max-line-length
     // keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
@@ -95,11 +81,8 @@ abstract contract ERC20 {
     // initial block.chainid, only changes in a future hardfork scenario
     uint256 internal immutable _initialChainId;
 
-    // initial domainSeparator only changes in a future hardfork scenario
+    // initial domain separator, only changes in a future hardfork scenario
     bytes32 internal immutable _initialDomainSeparator;
-
-    // hash of the name string i.e. keccak256(bytes(_name))
-    bytes32 internal immutable _nameHash;
 
     // token balances mapping, storage slot 0x00
     mapping(address => uint256) internal _balances;
@@ -113,6 +96,10 @@ abstract contract ERC20 {
     // permit nonces, storage slot 0x03
     mapping(address => uint256) internal _nonces;
 
+    event Transfer(address indexed src, address indexed dst, uint256 amount);
+
+    event Approval(address indexed src, address indexed dst, uint256 amount);
+
     constructor(string memory name_, string memory symbol_) {
         /// @dev constructor in solidity bc cannot handle immutables with inline assembly
         /// also, constructor gas optimization not really important (one time cost)
@@ -124,16 +111,17 @@ abstract contract ERC20 {
         uint256 symbolLen = symbolB.length;
 
         // check strings are <=32 bytes
-        if (nameLen > 32) {
-            revert StringTooLong(name_);
-        }
-        if (symbolLen > 32) {
-            revert StringTooLong(symbol_);
+        assembly {
+            if or(lt(0x20, nameLen), lt(0x20, symbolLen)) {
+                mstore(0x00, _STRING_TOO_LONG_SELECTOR)
+                revert(0x00, 0x04)
+            }
         }
 
         // compute domain separator
-        bytes32 nameHash = keccak256(nameB);
-        bytes32 initialDomainSeparator = _computeDomainSeparator(nameHash);
+        bytes32 initialDomainSeparator = _computeDomainSeparator(
+            keccak256(nameB)
+        );
 
         // set immutables
         _name = bytes32(nameB);
@@ -141,7 +129,6 @@ abstract contract ERC20 {
         _nameLen = nameLen;
         _symbolLen = symbolLen;
         _initialChainId = block.chainid;
-        _nameHash = nameHash;
         _initialDomainSeparator = initialDomainSeparator;
     }
 
@@ -278,7 +265,7 @@ abstract contract ERC20 {
     ) public virtual {
         assembly {
             // require(deadline >= block.timestamp, "Expired");
-            if lt(timestamp(), deadline) {
+            if gt(timestamp(), deadline) {
                 mstore(0x00, _EXPIRED_SELECTOR)
                 revert(0x00, 0x04)
             }
@@ -287,7 +274,7 @@ abstract contract ERC20 {
         bytes32 separator = DOMAIN_SEPARATOR();
 
         assembly {
-            // uint256 nonce = nonces[owner];
+            // uint256 nonce = _nonces[owner];
             mstore(0x00, owner)
             mstore(0x20, 0x03)
             let nonceSlot := keccak256(0x00, 0x40)
@@ -301,8 +288,8 @@ abstract contract ERC20 {
             mstore(add(memptr, 0x40), spender)
             mstore(add(memptr, 0x60), value)
             mstore(add(memptr, 0x80), nonce)
-            mstore(add(memptr, 0x100), deadline)
-            mstore(add(memptr, 0x22), keccak256(memptr, 0x120))
+            mstore(add(memptr, 0xA0), deadline)
+            mstore(add(memptr, 0x22), keccak256(memptr, 0xC0))
 
             // bytes32 hash = keccak256(abi.encodePacked("\x19\x01", separator, innerHash))
             mstore8(memptr, 0x19)
@@ -324,12 +311,15 @@ abstract contract ERC20 {
             let recovered := mload(memptr)
 
             // require(recovered != address(0) && recovered == owner, "Invalid Signature");
-            if or(iszero(recovered), not(eq(recovered, owner))) {
+            if or(
+                iszero(recovered),
+                not(add(eq(recovered, owner), sub(_MAX, 0x01)))
+            ) {
                 mstore(0x00, _INVALID_SIG_SELECTOR)
                 revert(0x00, 0x04)
             }
 
-            // unchecked { ++nonces[owner]; }
+            // unchecked { _nonces[owner] += 1 }
             sstore(nonceSlot, add(nonce, 0x01))
 
             // _allowances[recovered][spender] = value;
@@ -377,6 +367,7 @@ abstract contract ERC20 {
 
     function nonces(address src) public view virtual returns (uint256 nonce) {
         assembly {
+            // return nonces[src];
             mstore(0x00, src)
             mstore(0x20, 0x03)
             nonce := sload(keccak256(0x00, 0x40))
@@ -385,6 +376,7 @@ abstract contract ERC20 {
 
     function totalSupply() public view virtual returns (uint256 amount) {
         assembly {
+            // return _supply;
             amount := sload(0x02)
         }
     }
@@ -413,13 +405,6 @@ abstract contract ERC20 {
         }
     }
 
-    function decimals() public pure virtual returns (uint8 amount) {
-        assembly {
-            // return 18;
-            amount := 0x12
-        }
-    }
-
     // solhint-disable-next-line func-name-mixedcase
     function DOMAIN_SEPARATOR()
         public
@@ -435,23 +420,13 @@ abstract contract ERC20 {
             }
         }
 
-        return _computeDomainSeparator(_nameHash);
+        return _computeDomainSeparator(keccak256(abi.encode(_name)));
     }
 
-    function _computeDomainSeparator(bytes32 nameHash)
-        internal
-        view
-        virtual
-        returns (bytes32 domainSeparator)
-    {
+    function decimals() public pure virtual returns (uint8 amount) {
         assembly {
-            let memptr := mload(0x40)
-            mstore(memptr, _EIP712_DOMAIN_PREFIX_HASH)
-            mstore(add(memptr, 0x20), nameHash)
-            mstore(add(memptr, 0x40), _VERSION_1_HASH)
-            mstore(add(memptr, 0x60), chainid())
-            mstore(add(memptr, 0x80), address())
-            domainSeparator := keccak256(memptr, 0x100)
+            // return 18;
+            amount := 0x12
         }
     }
 
@@ -506,6 +481,23 @@ abstract contract ERC20 {
             // emit Transfer(src, address(0), amount);
             mstore(0x00, amount)
             log3(0x00, 0x20, _TRANSFER_HASH, src, 0x00)
+        }
+    }
+
+    function _computeDomainSeparator(bytes32 nameHash)
+        internal
+        view
+        virtual
+        returns (bytes32 domainSeparator)
+    {
+        assembly {
+            let memptr := mload(0x40)
+            mstore(memptr, _EIP712_DOMAIN_PREFIX_HASH)
+            mstore(add(memptr, 0x20), nameHash)
+            mstore(add(memptr, 0x40), _VERSION_1_HASH)
+            mstore(add(memptr, 0x60), chainid())
+            mstore(add(memptr, 0x80), address())
+            domainSeparator := keccak256(memptr, 0x100)
         }
     }
 }

@@ -1,14 +1,29 @@
 import { expect } from "chai";
 import hre = require("hardhat");
-import { Contract, Signer } from "ethers";
-import {
-  OpenZeppelinERC20,
-  SolmateERC20,
-  YulERC20,
-  //TestERC20Gas
-} from "../typechain";
+import { Contract, Signer, Wallet } from "ethers";
+import { OpenZeppelinERC20, SolmateERC20, YulERC20 } from "../typechain";
+import { keccak256 } from "@ethersproject/keccak256";
+import { ecsign } from "ethereumjs-util";
 
 const { ethers, deployments } = hre;
+
+function hexToBytes(hexString: string) {
+  if (hexString.length % 2 !== 0) {
+    throw "Must have an even number of hex digits to convert to bytes";
+  }
+  const numBytes = hexString.length / 2;
+  const byteArray = new Uint8Array(numBytes);
+  for (let i = 0; i < numBytes; i++) {
+    byteArray[i] = parseInt(hexString.substring(i * 2, i * 2 + 2), 16);
+  }
+  return byteArray;
+}
+
+const sign = (msgHash: string, privKey: string): any => {
+  const hash = Buffer.alloc(32, msgHash.slice(2), "hex");
+  const priv = Buffer.alloc(32, privKey.slice(2), "hex");
+  return ecsign(hash, priv);
+};
 
 describe("YulERC20 test", async function () {
   this.timeout(0);
@@ -18,7 +33,6 @@ describe("YulERC20 test", async function () {
   let ozToken: OpenZeppelinERC20;
   let smToken: SolmateERC20;
   let yulToken: YulERC20;
-  // let testGas: TestERC20Gas;
 
   beforeEach("setup", async function () {
     if (hre.network.name !== "hardhat") {
@@ -35,12 +49,10 @@ describe("YulERC20 test", async function () {
     )) as OpenZeppelinERC20;
     smToken = (await ethers.getContract("SolmateERC20", user)) as SolmateERC20;
     yulToken = (await ethers.getContract("YulERC20", user)) as YulERC20;
-    // testGas = (await ethers.getContract("TestERC20Gas", user)) as TestERC20Gas;
   });
   it("tests erc20", async function () {
     const oneEth = ethers.utils.parseEther("1");
     const tokens = [ozToken, smToken, yulToken];
-    // const names = ["OZ", "Solmate", "Yul"];
     for (let i = 0; i < tokens.length; i++) {
       const decimals = await tokens[i].decimals();
       expect(decimals).to.be.equal(18);
@@ -187,10 +199,79 @@ describe("YulERC20 test", async function () {
       await itoken.name();
       await itoken.symbol();
       await itoken.decimals();
+    }
 
-      // const ret = await testGas.test(tokens[i].address);
-      // const vals = ret.map((x:any) => x.toString());
-      // console.log(names[i], vals);
+    const permitTokens = [smToken, yulToken];
+
+    for (let j = 0; j < 2; j++) {
+      const random = new Wallet(
+        "0x36383cc9cfbf1dc87c78c2529ae2fcd4e3fc4e575e154b357ae3a8b2739113cf"
+      );
+      await permitTokens[j].connect(user).transfer(random.address, oneEth);
+
+      const ds = await permitTokens[j].DOMAIN_SEPARATOR();
+
+      const z = ethers.utils.defaultAbiCoder.encode(
+        ["bytes32", "address", "address", "uint256", "uint256", "uint256"],
+        [
+          "0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9",
+          random.address,
+          await user.getAddress(),
+          oneEth,
+          ethers.constants.Zero,
+          9999999999,
+        ]
+      );
+      const innerHash = keccak256(hexToBytes(z.substring(2)));
+
+      const outerString = ethers.utils.solidityPack(
+        ["string", "bytes32", "bytes32"],
+        ["\x19\x01", ds, innerHash]
+      );
+      const hashOut = keccak256(hexToBytes(outerString.substring(2)));
+
+      const sig = sign(
+        hashOut,
+        "0x36383cc9cfbf1dc87c78c2529ae2fcd4e3fc4e575e154b357ae3a8b2739113cf"
+      );
+      const allowanceBefore = await permitTokens[j].allowance(
+        random.address,
+        await user.getAddress()
+      );
+      expect(allowanceBefore).to.be.equal(ethers.constants.Zero);
+      const tx = await permitTokens[j].permit(
+        random.address,
+        await user.getAddress(),
+        oneEth,
+        9999999999,
+        sig.v,
+        sig.r,
+        sig.s
+      );
+      const rc = await tx.wait();
+      const event2 = rc?.events?.find(
+        (event: any) => event.event === "Approval"
+      );
+      // eslint-disable-next-line no-unsafe-optional-chaining
+      expect(event2?.address).to.be.equal(permitTokens[j].address);
+      const allowanceAfter = await permitTokens[j].allowance(
+        random.address,
+        await user.getAddress()
+      );
+      expect(allowanceAfter).to.be.gt(allowanceBefore);
+      expect(allowanceAfter).to.be.equal(oneEth);
+
+      await expect(
+        permitTokens[j].permit(
+          random.address,
+          await user2.getAddress(),
+          oneEth,
+          9999999999,
+          sig.v,
+          sig.r,
+          sig.s
+        )
+      ).to.be.reverted;
     }
   });
 });
