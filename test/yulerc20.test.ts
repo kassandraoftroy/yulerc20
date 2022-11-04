@@ -1,7 +1,12 @@
 import { expect } from "chai";
 import hre = require("hardhat");
 import { Contract, Signer, Wallet } from "ethers";
-import { OpenZeppelinERC20, SolmateERC20, YulERC20 } from "../typechain";
+import {
+  OpenZeppelinERC20,
+  SolmateERC20,
+  YulERC20,
+  YulERC20Ext,
+} from "../typechain";
 import { keccak256 } from "@ethersproject/keccak256";
 import { ecsign } from "ethereumjs-util";
 
@@ -33,6 +38,7 @@ describe("YulERC20 test", async function () {
   let ozToken: OpenZeppelinERC20;
   let smToken: SolmateERC20;
   let yulToken: YulERC20;
+  let yulToken2: YulERC20Ext;
 
   beforeEach("setup", async function () {
     if (hre.network.name !== "hardhat") {
@@ -49,10 +55,11 @@ describe("YulERC20 test", async function () {
     )) as OpenZeppelinERC20;
     smToken = (await ethers.getContract("SolmateERC20", user)) as SolmateERC20;
     yulToken = (await ethers.getContract("YulERC20", user)) as YulERC20;
+    yulToken2 = (await ethers.getContract("YulERC20Ext", user)) as YulERC20Ext;
   });
   it("tests erc20", async function () {
     const oneEth = ethers.utils.parseEther("1");
-    const tokens = [ozToken, smToken, yulToken];
+    const tokens = [ozToken, smToken, yulToken, yulToken2];
     for (let i = 0; i < tokens.length; i++) {
       const decimals = await tokens[i].decimals();
       expect(decimals).to.be.equal(18);
@@ -201,9 +208,9 @@ describe("YulERC20 test", async function () {
       await itoken.decimals();
     }
 
-    const permitTokens = [smToken, yulToken];
+    const permitTokens = [smToken, yulToken, yulToken2];
 
-    for (let j = 0; j < 2; j++) {
+    for (let j = 0; j < permitTokens.length; j++) {
       const random = new Wallet(
         "0x36383cc9cfbf1dc87c78c2529ae2fcd4e3fc4e575e154b357ae3a8b2739113cf"
       );
