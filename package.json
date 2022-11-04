@@ -34,6 +34,7 @@
     "eslint-config-prettier": "8.3.0",
     "eslint-plugin-prettier": "4.0.0",
     "ethereum-waffle": "3.4.4",
+    "ethereumjs-util": "^7.1.5",
     "ethers": "5.6.9",
     "hardhat": "2.9.9",
     "hardhat-deploy": "0.11.10",
@@ -73,5 +74,5 @@
   "homepage": "https://github.com/kassandraoftroy/yulerc20",
   "description": "Yul ERC20",
   "license": "MIT",
-  "version": "0.3.0"
+  "version": "0.4.0"
 }

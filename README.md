@@ -2,7 +2,7 @@
 
 **NOT MEANT FOR PRODUCTION - UNAUDITED - USE AT OWN RISK**
 
-ERC20 implementation using only inline assembly YUL. Basically, it is a hyper gas optimized ERC20 base implementation for solidity developers. It improves on gas consupmtion for nearly every `public` & `external` method over the leading ERC20.sol implementations (OpenZeppelin, Solmate). Optimizing view/pure calls can matter too, as many ERC20 view methods get used inside of state changing methods. See below for full gas comparison.
+ERC20.sol implementation using only inline assembly YUL. Basically, it is a hyper gas optimized ERC20 base implementation for solidity developers. It improves on gas consupmtion for nearly every `public` / `external` method over the leading ERC20.sol implementations (OpenZeppelin, Solmate). Optimizing view/pure calls can matter too, as many ERC20 view methods get used inside of state changing methods. See below for full gas comparison.
 
 Mostly this is useful as a reference implementation to learn the basics of inline assembly if you are already familiar with canonical solidity ERC20 implementations
 
@@ -36,6 +36,21 @@ yarn test
 - Optimizer enabled: `true`
 - Runs: `999999`
 
+### approve
+
+| Contract          | Gas Cost  |
+| ----------------- | --------- |
+| OpenZeppelinERC20 | 46232     |
+| SolmateERC20      | 46153     |
+| YulERC20          | **46080** |
+
+### permit
+
+| Contract     | Gas Cost  |
+| ------------ | --------- |
+| SolmateERC20 | 74172     |
+| YulERC20     | **74110** |
+
 ### transfer
 
 | Contract          | Gas Cost  |
@@ -60,21 +75,13 @@ yarn test
 | SolmateERC20      | 24557     |
 | YulERC20          | **24557** |
 
-### approve
-
-| Contract          | Gas Cost  |
-| ----------------- | --------- |
-| OpenZeppelinERC20 | 46232     |
-| SolmateERC20      | 46153     |
-| YulERC20          | **46080** |
-
 ### balanceOf
 
 | Contract          | Gas Cost  |
 | ----------------- | --------- |
 | OpenZeppelinERC20 | 23993     |
-| SolmateERC20      | 23984     |
-| YulERC20          | **24009** |
+| SolmateERC20      | **23984** |
+| YulERC20          | 23987     |
 
 ### burn
 
@@ -82,7 +89,7 @@ yarn test
 | ----------------- | --------- |
 | OpenZeppelinERC20 | 28900     |
 | SolmateERC20      | 28768     |
-| YulERC20          | **28668** |
+| YulERC20          | **28646** |
 
 ### decimals
 
@@ -98,7 +105,7 @@ yarn test
 | ----------------- | --------- |
 | OpenZeppelinERC20 | 51317     |
 | SolmateERC20      | 51194     |
-| YulERC20          | **51052** |
+| YulERC20          | **51118** |
 
 ### name
 
@@ -114,7 +121,7 @@ yarn test
 | ----------------- | --------- |
 | OpenZeppelinERC20 | 24282     |
 | SolmateERC20      | 24274     |
-| YulERC20          | **21602** |
+| YulERC20          | **21580** |
 
 ### totalSupply
 
