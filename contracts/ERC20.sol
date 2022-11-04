@@ -4,6 +4,9 @@ pragma solidity ^0.8.4;
 
 /// @notice ERC20 (including EIP-2612 Permit) using max inline assembly.
 /// @author kassandra.eth
+/// NOTE Inspiration taken from Solmate and OpenZeppelin ERC20 implementations
+/// Solmate repo: https://github.com/transmissions11/solmate
+/// OZ repo: https://github.com/OpenZeppelin/openzeppelin-contracts
 /// @dev name_ and symbol_ string contructor args must be 32 bytes or smaller
 /// Do not manually set _balances without updating _supply (could cause math problems)
 /// Do not adjust state layout here without fixing hardcoded sload/sstore slots across logic

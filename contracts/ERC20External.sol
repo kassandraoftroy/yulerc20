@@ -5,15 +5,18 @@ pragma solidity ^0.8.4;
 /// @notice ERC20 (including EIP-2612 Permit) using max inline assembly.
 /// NOTE ERC20External.sol enhances gas savings from ERC20.sol, trade-off is methods marked external
 /// @author kassandra.eth
-/// @dev NOTE Many methods here marked as external (even though EIP-20 spec has them public)
-/// This is because they end execution and are thus not suitable for internal use as a subroutine
-/// For accessor methods internal state can be accessed directly (e.g. _balances[a] vs balanceOf(a))
-/// If your ERC20 requires internal access to transfer, transferFrom, or approve etc. use ERC20.sol
+/// NOTE Inspiration taken from Solmate and OpenZeppelin ERC20 implementations
+/// Solmate repo: https://github.com/transmissions11/solmate
+/// OZ repo: https://github.com/OpenZeppelin/openzeppelin-contracts
 /// @dev name_ and symbol_ string contructor args must be 32 bytes or smaller
 /// Do not manually set _balances without updating _supply (could cause math problems)
 /// Do not adjust state layout here without fixing hardcoded sload/sstore slots across logic
 /// We use custom errors for efficient but useful reverts
 /// Inline assembly blocks have solidity translation comments! (Assume same 0.8+ solidity version)
+/// NOTE Many methods here marked as external (even though EIP-20 spec has them public)
+/// This is because they end execution and are thus not suitable for internal use as a subroutine
+/// For accessor methods internal state can be accessed directly (e.g. _balances[a] vs balanceOf(a))
+/// If your ERC20 requires INTERNAL access to transfer, transferFrom, or approve etc. use ERC20.sol
 
 // solhint-disable-next-line max-states-count
 abstract contract ERC20External {
