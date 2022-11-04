@@ -409,15 +409,10 @@ abstract contract ERC20 {
         virtual
         returns (bytes32 domainSeparator)
     {
-        uint256 chainId = _initialChainId;
-        bytes32 separator = _initialDomainSeparator;
-        assembly {
-            if eq(chainid(), chainId) {
-                domainSeparator := separator
-            }
-        }
-
-        return _computeDomainSeparator(keccak256(abi.encode(_name)));
+        return
+            block.chainid == _initialChainId
+                ? _initialDomainSeparator
+                : _computeDomainSeparator(keccak256(abi.encode(_name)));
     }
 
     function decimals() public pure virtual returns (uint8 amount) {
