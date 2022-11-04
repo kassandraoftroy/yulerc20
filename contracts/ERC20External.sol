@@ -3,7 +3,12 @@
 pragma solidity ^0.8.4;
 
 /// @notice ERC20 (including EIP-2612 Permit) using max inline assembly.
+/// NOTE ERC20External.sol enhances gas savings from ERC20.sol, trade-off is methods marked external
 /// @author kassandra.eth
+/// @dev NOTE Many methods here marked as external (even though EIP-20 spec has them public)
+/// This is because they end execution and are thus not suitable for internal use as a subroutine
+/// For accessor methods internal state can be accessed directly (e.g. _balances[a] vs balanceOf(a))
+/// If your ERC20 requires internal access to transfer, transferFrom, or approve etc. use ERC20.sol
 /// @dev name_ and symbol_ string contructor args must be 32 bytes or smaller
 /// Do not manually set _balances without updating _supply (could cause math problems)
 /// Do not adjust state layout here without fixing hardcoded sload/sstore slots across logic
@@ -11,7 +16,7 @@ pragma solidity ^0.8.4;
 /// Inline assembly blocks have solidity translation comments! (Assume same 0.8+ solidity version)
 
 // solhint-disable-next-line max-states-count
-abstract contract ERC20 {
+abstract contract ERC20External {
     // keccak256("Transfer(address,address,uint256)")
     bytes32 internal constant _TRANSFER_HASH =
         0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef;
@@ -133,9 +138,9 @@ abstract contract ERC20 {
     }
 
     function transfer(address dst, uint256 amount)
-        public
+        external
         virtual
-        returns (bool success)
+        returns (bool)
     {
         assembly {
             // require(dst != address(0), "Address Zero");
@@ -167,7 +172,8 @@ abstract contract ERC20 {
             log3(0x00, 0x20, _TRANSFER_HASH, caller(), dst)
 
             // return true;
-            success := 0x01
+            mstore(0x00, 0x01)
+            return(0x00, 0x20)
         }
     }
 
@@ -176,7 +182,7 @@ abstract contract ERC20 {
         address src,
         address dst,
         uint256 amount
-    ) public virtual returns (bool success) {
+    ) external virtual returns (bool) {
         assembly {
             // require(dst != address(0), "Address Zero");
             if iszero(dst) {
@@ -227,14 +233,15 @@ abstract contract ERC20 {
             log3(0x00, 0x20, _TRANSFER_HASH, src, dst)
 
             // return true;
-            success := 0x01
+            mstore(0x00, 0x01)
+            return(0x00, 0x20)
         }
     }
 
     function approve(address dst, uint256 amount)
-        public
+        external
         virtual
-        returns (bool success)
+        returns (bool)
     {
         assembly {
             // _allowances[msg.sender][dst] = amount;
@@ -249,7 +256,85 @@ abstract contract ERC20 {
             log3(0x00, 0x20, _APPROVAL_HASH, caller(), dst)
 
             // return true;
-            success := 0x01
+            mstore(0x00, 0x01)
+            return(0x00, 0x20)
+        }
+    }
+
+    function allowance(address src, address dst)
+        external
+        view
+        virtual
+        returns (uint256)
+    {
+        assembly {
+            // return _allowances[src][dst];
+            mstore(0x00, src)
+            mstore(0x20, 0x01)
+            mstore(0x20, keccak256(0x00, 0x40))
+            mstore(0x00, dst)
+            mstore(0x00, sload(keccak256(0x00, 0x40)))
+            return(0x00, 0x20)
+        }
+    }
+
+    function balanceOf(address src) external view virtual returns (uint256) {
+        assembly {
+            // return _balances[src];
+            mstore(0x00, src)
+            mstore(0x20, 0x00)
+            mstore(0x00, sload(keccak256(0x00, 0x40)))
+            return(0x00, 0x20)
+        }
+    }
+
+    function nonces(address src) external view virtual returns (uint256) {
+        assembly {
+            // return nonces[src];
+            mstore(0x00, src)
+            mstore(0x20, 0x03)
+            mstore(0x00, sload(keccak256(0x00, 0x40)))
+            return(0x00, 0x20)
+        }
+    }
+
+    function totalSupply() external view virtual returns (uint256) {
+        assembly {
+            // return _supply;
+            mstore(0x00, sload(0x02))
+            return(0x00, 0x20)
+        }
+    }
+
+    function name() external view virtual returns (string memory) {
+        bytes32 myName = _name;
+        uint256 myNameLen = _nameLen;
+        assembly {
+            // return string(bytes(_name));
+            mstore(0x00, 0x20)
+            mstore(0x20, myNameLen)
+            mstore(0x40, myName)
+            return(0x00, 0x60)
+        }
+    }
+
+    function symbol() external view virtual returns (string memory) {
+        bytes32 mySymbol = _symbol;
+        uint256 mySymbolLen = _symbolLen;
+        assembly {
+            // return string(bytes(_symbol));
+            mstore(0x00, 0x20)
+            mstore(0x20, mySymbolLen)
+            mstore(0x40, mySymbol)
+            return(0x00, 0x60)
+        }
+    }
+
+    function decimals() external pure virtual returns (uint8) {
+        assembly {
+            // return 18;
+            mstore(0x00, 0x12)
+            return(0x00, 0x20)
         }
     }
 
@@ -332,89 +417,12 @@ abstract contract ERC20 {
         }
     }
 
-    function allowance(address src, address dst)
-        public
-        view
-        virtual
-        returns (uint256 amount)
-    {
-        assembly {
-            // return _allowances[src][dst];
-            mstore(0x00, src)
-            mstore(0x20, 0x01)
-            mstore(0x20, keccak256(0x00, 0x40))
-            mstore(0x00, dst)
-            amount := sload(keccak256(0x00, 0x40))
-        }
-    }
-
-    function balanceOf(address src)
-        public
-        view
-        virtual
-        returns (uint256 amount)
-    {
-        assembly {
-            // return _balances[src];
-            mstore(0x00, src)
-            mstore(0x20, 0x00)
-            amount := sload(keccak256(0x00, 0x40))
-        }
-    }
-
-    function nonces(address src) public view virtual returns (uint256 nonce) {
-        assembly {
-            // return nonces[src];
-            mstore(0x00, src)
-            mstore(0x20, 0x03)
-            nonce := sload(keccak256(0x00, 0x40))
-        }
-    }
-
-    function totalSupply() public view virtual returns (uint256 amount) {
-        assembly {
-            // return _supply;
-            amount := sload(0x02)
-        }
-    }
-
-    function name() public view virtual returns (string memory value) {
-        bytes32 myName = _name;
-        uint256 myNameLen = _nameLen;
-        assembly {
-            // return string(bytes(_name));
-            value := mload(0x40)
-            mstore(0x40, add(value, 0x40))
-            mstore(value, myNameLen)
-            mstore(add(value, 0x20), myName)
-        }
-    }
-
-    function symbol() public view virtual returns (string memory value) {
-        bytes32 mySymbol = _symbol;
-        uint256 mySymbolLen = _symbolLen;
-        assembly {
-            // return string(bytes(_symbol));
-            value := mload(0x40)
-            mstore(0x40, add(value, 0x40))
-            mstore(value, mySymbolLen)
-            mstore(add(value, 0x20), mySymbol)
-        }
-    }
-
     // solhint-disable-next-line func-name-mixedcase
     function DOMAIN_SEPARATOR() public view virtual returns (bytes32) {
         return
             block.chainid == _initialChainId
                 ? _initialDomainSeparator
                 : _computeDomainSeparator(keccak256(abi.encode(_name)));
-    }
-
-    function decimals() public pure virtual returns (uint8 amount) {
-        assembly {
-            // return 18;
-            amount := 0x12
-        }
     }
 
     function _mint(address dst, uint256 amount) internal virtual {
