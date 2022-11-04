@@ -5,7 +5,7 @@ import {
   OpenZeppelinERC20,
   SolmateERC20,
   YulERC20,
-  YulERC20Ext,
+  YulERC20External,
 } from "../typechain";
 import { keccak256 } from "@ethersproject/keccak256";
 import { ecsign } from "ethereumjs-util";
@@ -38,7 +38,7 @@ describe("YulERC20 test", async function () {
   let ozToken: OpenZeppelinERC20;
   let smToken: SolmateERC20;
   let yulToken: YulERC20;
-  let yulToken2: YulERC20Ext;
+  let yulToken2: YulERC20External;
 
   beforeEach("setup", async function () {
     if (hre.network.name !== "hardhat") {
@@ -55,7 +55,10 @@ describe("YulERC20 test", async function () {
     )) as OpenZeppelinERC20;
     smToken = (await ethers.getContract("SolmateERC20", user)) as SolmateERC20;
     yulToken = (await ethers.getContract("YulERC20", user)) as YulERC20;
-    yulToken2 = (await ethers.getContract("YulERC20Ext", user)) as YulERC20Ext;
+    yulToken2 = (await ethers.getContract(
+      "YulERC20External",
+      user
+    )) as YulERC20External;
   });
   it("tests erc20", async function () {
     const oneEth = ethers.utils.parseEther("1");
