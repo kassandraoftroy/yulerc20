@@ -60,8 +60,8 @@ yarn test
 | Contract         | Gas Cost  |
 | ---------------- | --------- |
 | SolmateERC20     | 74172     |
-| YulERC20         | 73782     |
-| YulERC20External | **73770** |
+| YulERC20         | 73774     |
+| YulERC20External | **73762** |
 
 ### transfer
 
