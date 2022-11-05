@@ -390,12 +390,11 @@ abstract contract ERC20External {
             mstore(add(memptr, 0x40), r)
             mstore(add(memptr, 0x60), s)
 
-            if iszero(staticcall(not(0x00), 0x01, memptr, 0x80, memptr, 0x20)) {
+            if iszero(staticcall(_MAX, 0x01, memptr, 0x80, memptr, 0x20)) {
                 revert(0x00, 0x00)
             }
 
-            let size := returndatasize()
-            returndatacopy(memptr, 0, size)
+            returndatacopy(memptr, 0x00, returndatasize())
             let recovered := mload(memptr)
 
             // require(recovered != address(0) && recovered == owner, "Invalid Signature");
